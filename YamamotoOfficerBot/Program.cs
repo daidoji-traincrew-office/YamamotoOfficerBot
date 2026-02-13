@@ -3,7 +3,8 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry.Trace;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry.Logs;
 using YamamotoOfficerBot.Models;
 using YamamotoOfficerBot.Scheduler;
 using YamamotoOfficerBot.Services;
@@ -34,15 +35,17 @@ builder.Services.AddSingleton<DutyResetScheduler>();
 builder.Services.AddHostedService<BotHostedService>();
 
 // OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new(
-                builder.Configuration["OpenTelemetry:OtlpEndpoint"]
-                ?? "http://localhost:4317");
-        }));
+var endpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+if (endpoint != null)
+{
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeFormattedMessage = true;
+        logging.IncludeScopes = true;
+        logging.AddOtlpExporter(options => { options.Endpoint = new(endpoint); });
+    });
+}
+
 
 var host = builder.Build();
 await host.RunAsync();
