@@ -1,5 +1,7 @@
+using System.Net;
 using Discord;
 using Discord.Interactions;
+using Discord.Net;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,74 +10,86 @@ using DiscordConfig = YamamotoOfficerBot.Models.DiscordConfig;
 
 namespace YamamotoOfficerBot.Services;
 
-public class BotHostedService : IHostedService
+public class BotHostedService(
+    DiscordSocketClient client,
+    InteractionService interactionService,
+    IOptions<DiscordConfig> discordConfig,
+    IServiceProvider serviceProvider,
+    ILogger<BotHostedService> logger,
+    IHostApplicationLifetime applicationLifetime)
+    : IHostedService
 {
-    private readonly DiscordSocketClient _client;
-    private readonly InteractionService _interactionService;
-    private readonly DiscordConfig _discordConfig;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<BotHostedService> _logger;
-
-    public BotHostedService(
-        DiscordSocketClient client,
-        InteractionService interactionService,
-        IOptions<DiscordConfig> discordConfig,
-        IServiceProvider serviceProvider,
-        ILogger<BotHostedService> logger)
-    {
-        _client = client;
-        _interactionService = interactionService;
-        _discordConfig = discordConfig.Value;
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-    }
+    private readonly DiscordConfig _discordConfig = discordConfig.Value;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("BotHostedService starting...");
+        logger.LogInformation("BotHostedService starting...");
 
-        // Readyイベントにハンドラ登録
-        _client.Ready += OnReadyAsync;
+        try
+        {
+            // Readyイベントにハンドラ登録
+            client.Ready += OnReadyAsync;
 
-        // インタラクションイベントにハンドラ登録
-        _client.InteractionCreated += HandleInteractionAsync;
+            // インタラクションイベントにハンドラ登録
+            client.InteractionCreated += HandleInteractionAsync;
 
-        // ログイン
-        await _client.LoginAsync(TokenType.Bot, _discordConfig.Token);
-        await _client.StartAsync();
+            // ログイン
+            await client.LoginAsync(TokenType.Bot, _discordConfig.Token);
+            await client.StartAsync();
 
-        _logger.LogInformation("Discord client started");
+            logger.LogInformation("Discord client started");
+        }
+        catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Unauthorized)
+        {
+            logger.LogCritical(ex, "Invalid Discord bot token. Please check your configuration.");
+            applicationLifetime.StopApplication();
+        }
+        catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.TooManyRequests)
+        {
+            logger.LogCritical(ex, "Rate limited by Discord. Please try again later.");
+            applicationLifetime.StopApplication();
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogCritical(ex, "Network timeout while connecting to Discord. Please check your network connection.");
+            applicationLifetime.StopApplication();
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Failed to start Discord bot. Unexpected error occurred.");
+            applicationLifetime.StopApplication();
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("BotHostedService stopping...");
+        logger.LogInformation("BotHostedService stopping...");
 
-        await _client.StopAsync();
-        await _client.LogoutAsync();
+        await client.StopAsync();
+        await client.LogoutAsync();
 
-        _logger.LogInformation("Discord client stopped");
+        logger.LogInformation("Discord client stopped");
     }
 
     private async Task OnReadyAsync()
     {
-        _logger.LogInformation("Discord client is ready. Guild ID: {GuildId}", _discordConfig.GuildId);
+        logger.LogInformation("Discord client is ready. Guild ID: {GuildId}", _discordConfig.GuildId);
 
         try
         {
             // モジュールを登録
-            await _interactionService.AddModulesAsync(
+            await interactionService.AddModulesAsync(
                 assembly: typeof(BotHostedService).Assembly,
-                services: _serviceProvider);
+                services: serviceProvider);
 
             // Guildコマンドを登録
-            await _interactionService.RegisterCommandsToGuildAsync(_discordConfig.GuildId);
+            await interactionService.RegisterCommandsToGuildAsync(_discordConfig.GuildId);
 
-            _logger.LogInformation("Slash commands registered to guild {GuildId}", _discordConfig.GuildId);
+            logger.LogInformation("Slash commands registered to guild {GuildId}", _discordConfig.GuildId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to register slash commands");
+            logger.LogError(ex, "Failed to register slash commands");
         }
     }
 
@@ -84,14 +98,14 @@ public class BotHostedService : IHostedService
         try
         {
             // インタラクションコンテキストを作成
-            var context = new SocketInteractionContext(_client, interaction);
+            var context = new SocketInteractionContext(client, interaction);
 
             // コマンドを実行
-            await _interactionService.ExecuteCommandAsync(context, _serviceProvider);
+            await interactionService.ExecuteCommandAsync(context, serviceProvider);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling interaction");
+            logger.LogError(ex, "Error handling interaction");
 
             // エラー時のレスポンス
             if (interaction.Type == InteractionType.ApplicationCommand)

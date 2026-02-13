@@ -6,28 +6,20 @@ using YamamotoOfficerBot.Models;
 
 namespace YamamotoOfficerBot.Scheduler;
 
-public class DutyResetScheduler : Scheduler
+public class DutyResetScheduler(
+    IServiceScopeFactory serviceScopeFactory,
+    DiscordSocketClient client,
+    IOptions<Dictionary<string, DutyConfig>> dutyConfigs,
+    IOptions<DiscordConfig> discordConfig)
+    : Scheduler(serviceScopeFactory)
 {
     private static readonly TimeZoneInfo JstTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
     private const int ResetHour = 4;
 
-    private readonly DiscordSocketClient _client;
-    private readonly Dictionary<string, DutyConfig> _dutyConfigs;
-    private readonly ulong _guildId;
+    private readonly Dictionary<string, DutyConfig> _dutyConfigs = dutyConfigs.Value;
+    private readonly ulong _guildId = discordConfig.Value.GuildId;
 
     protected override int Interval => CalculateIntervalUntilNextReset();
-
-    public DutyResetScheduler(
-        IServiceScopeFactory serviceScopeFactory,
-        DiscordSocketClient client,
-        IOptions<Dictionary<string, DutyConfig>> dutyConfigs,
-        IOptions<DiscordConfig> discordConfig)
-        : base(serviceScopeFactory)
-    {
-        _client = client;
-        _dutyConfigs = dutyConfigs.Value;
-        _guildId = discordConfig.Value.GuildId;
-    }
 
     private int CalculateIntervalUntilNextReset()
     {
@@ -50,7 +42,7 @@ public class DutyResetScheduler : Scheduler
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<DutyResetScheduler>();
 
-        var guild = _client.GetGuild(_guildId);
+        var guild = client.GetGuild(_guildId);
         if (guild == null)
         {
             logger.LogError("Guild with ID {GuildId} not found.", _guildId);
@@ -58,6 +50,8 @@ public class DutyResetScheduler : Scheduler
         }
 
         var dutyRoleIds = _dutyConfigs.Values.Select(c => c.DutyRoleId).ToHashSet();
+        var rolesResetCount = 0;
+        var usersUpdatedCount = 0;
 
         foreach (var roleId in dutyRoleIds)
         {
@@ -75,6 +69,7 @@ public class DutyResetScheduler : Scheduler
                 try
                 {
                     await member.RemoveRoleAsync(role);
+                    usersUpdatedCount++;
                     logger.LogInformation("Removed role {RoleName} from user {UserName}.", role.Name, member.DisplayName);
                 }
                 catch (Exception ex)
@@ -82,6 +77,8 @@ public class DutyResetScheduler : Scheduler
                     logger.LogError(ex, "Failed to remove role {RoleName} from user {UserName}.", role.Name, member.DisplayName);
                 }
             }
+
+            rolesResetCount++;
         }
 
         logger.LogInformation("Duty reset completed at {Time} JST.", TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, JstTimeZone));

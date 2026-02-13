@@ -4,15 +4,8 @@ using YamamotoOfficerBot.Services;
 
 namespace YamamotoOfficerBot.Modules;
 
-public class DutyModule : InteractionModuleBase<SocketInteractionContext>
+public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketInteractionContext>
 {
-    private readonly RoleService _roleService;
-
-    public DutyModule(RoleService roleService)
-    {
-        _roleService = roleService;
-    }
-
     [SlashCommand("signal-duty-panel", "信号扱担務パネルを送信します")]
     public async Task SignalDutyPanelAsync()
     {
@@ -39,8 +32,9 @@ public class DutyModule : InteractionModuleBase<SocketInteractionContext>
 
     private async Task SendDutyPanelAsync(string dutyName, string dutyType)
     {
-        var user = Context.User as IGuildUser;
-        if (user == null || !_roleService.HasAdministratorRole(user))
+        // Defer the response to prevent timeout
+        await DeferAsync(ephemeral: true);
+        if (Context.User is not IGuildUser user || !roleService.HasAdministratorRole(user))
         {
             await RespondAsync(Messages.NoPermission, ephemeral: true);
             return;
@@ -51,7 +45,8 @@ public class DutyModule : InteractionModuleBase<SocketInteractionContext>
             .WithButton("解除", $"duty_remove_{dutyType}", ButtonStyle.Danger)
             .Build();
 
-        await RespondAsync(
+        // Use FollowupAsync after deferring
+        await FollowupAsync(
             $"{dutyName}\n以下のボタンを押して担務を付与・解除できます。",
             components: components);
     }

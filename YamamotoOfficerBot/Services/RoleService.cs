@@ -1,17 +1,16 @@
+using System.Net;
 using Discord;
+using Discord.Net;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using YamamotoOfficerBot.Exceptions;
 using YamamotoOfficerBot.Models;
 
 namespace YamamotoOfficerBot.Services;
 
-public class RoleService
+public class RoleService(IOptions<RolesConfig> rolesConfig, ILogger<RoleService> logger)
 {
-    private readonly RolesConfig _rolesConfig;
-
-    public RoleService(IOptions<RolesConfig> rolesConfig)
-    {
-        _rolesConfig = rolesConfig.Value;
-    }
+    private readonly RolesConfig _rolesConfig = rolesConfig.Value;
 
     /// <summary>
     /// AdministratorRoleIdsのいずれかを持つか確認
@@ -48,7 +47,37 @@ public class RoleService
     /// </summary>
     public async Task AssignDutyRole(IGuildUser user, DutyConfig dutyConfig)
     {
-        await user.AddRoleAsync(dutyConfig.DutyRoleId);
+        try
+        {
+            await user.AddRoleAsync(dutyConfig.DutyRoleId);
+        }
+        catch (HttpException ex)
+        {
+            logger.LogError(ex, "Failed to assign role {RoleId} to user {UserId}. Status: {StatusCode}",
+                dutyConfig.DutyRoleId, user.Id, ex.HttpCode);
+
+            var errorType = ex.HttpCode switch
+            {
+                HttpStatusCode.NotFound => RoleOperationErrorType.RoleNotFound,
+                HttpStatusCode.Forbidden => RoleOperationErrorType.MissingPermissions,
+                HttpStatusCode.TooManyRequests => RoleOperationErrorType.RateLimited,
+                _ => RoleOperationErrorType.Unknown
+            };
+
+            throw new RoleOperationException(errorType);
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout while assigning role {RoleId} to user {UserId}",
+                dutyConfig.DutyRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.NetworkError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error while assigning role {RoleId} to user {UserId}",
+                dutyConfig.DutyRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.Unknown);
+        }
     }
 
     /// <summary>
@@ -56,7 +85,37 @@ public class RoleService
     /// </summary>
     public async Task RemoveDutyRole(IGuildUser user, DutyConfig dutyConfig)
     {
-        await user.RemoveRoleAsync(dutyConfig.DutyRoleId);
+        try
+        {
+            await user.RemoveRoleAsync(dutyConfig.DutyRoleId);
+        }
+        catch (HttpException ex)
+        {
+            logger.LogError(ex, "Failed to remove role {RoleId} from user {UserId}. Status: {StatusCode}",
+                dutyConfig.DutyRoleId, user.Id, ex.HttpCode);
+
+            var errorType = ex.HttpCode switch
+            {
+                HttpStatusCode.NotFound => RoleOperationErrorType.RoleNotFound,
+                HttpStatusCode.Forbidden => RoleOperationErrorType.MissingPermissions,
+                HttpStatusCode.TooManyRequests => RoleOperationErrorType.RateLimited,
+                _ => RoleOperationErrorType.Unknown
+            };
+
+            throw new RoleOperationException(errorType);
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout while removing role {RoleId} from user {UserId}",
+                dutyConfig.DutyRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.NetworkError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error while removing role {RoleId} from user {UserId}",
+                dutyConfig.DutyRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.Unknown);
+        }
     }
 
     /// <summary>

@@ -1,21 +1,20 @@
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using YamamotoOfficerBot.Exceptions;
 using YamamotoOfficerBot.Models;
 using YamamotoOfficerBot.Services;
 
 namespace YamamotoOfficerBot.Handlers;
 
-public class ButtonHandler : InteractionModuleBase<SocketInteractionContext>
+public class ButtonHandler(
+    RoleService roleService,
+    IOptions<Dictionary<string, DutyConfig>> dutyConfigs,
+    ILogger<ButtonHandler> logger)
+    : InteractionModuleBase<SocketInteractionContext>
 {
-    private readonly RoleService _roleService;
-    private readonly Dictionary<string, DutyConfig> _dutyConfigs;
-
-    public ButtonHandler(RoleService roleService, IOptions<Dictionary<string, DutyConfig>> dutyConfigs)
-    {
-        _roleService = roleService;
-        _dutyConfigs = dutyConfigs.Value;
-    }
+    private readonly Dictionary<string, DutyConfig> _dutyConfigs = dutyConfigs.Value;
 
     [ComponentInteraction("duty_assign_*", ignoreGroupNames: true)]
     public async Task HandleAssignButtonAsync()
@@ -32,23 +31,32 @@ public class ButtonHandler : InteractionModuleBase<SocketInteractionContext>
         var user = (IGuildUser)Context.User;
 
         // 資格チェック
-        if (!_roleService.HasRequiredRole(user, dutyConfig))
+        if (!roleService.HasRequiredRole(user, dutyConfig))
         {
-            var roleNames = _roleService.GetRequiredRoleNames(Context.Guild, dutyConfig);
+            var roleNames = roleService.GetRequiredRoleNames(Context.Guild, dutyConfig);
             await RespondAsync(Messages.RequiredRolesMissing(roleNames), ephemeral: true);
             return;
         }
 
         // 既に担務を持っているかチェック
-        if (_roleService.HasDutyRole(user, dutyConfig))
+        if (roleService.HasDutyRole(user, dutyConfig))
         {
             await RespondAsync(Messages.AlreadyHasDuty, ephemeral: true);
             return;
         }
 
         // 担務ロール付与
-        await _roleService.AssignDutyRole(user, dutyConfig);
-        await RespondAsync(Messages.DutyAssigned, ephemeral: true);
+        try
+        {
+            await roleService.AssignDutyRole(user, dutyConfig);
+            await RespondAsync(Messages.DutyAssigned, ephemeral: true);
+        }
+        catch (RoleOperationException ex)
+        {
+            logger.LogError(ex, "Failed to assign duty {DutyType} to user {UserId}. ErrorType: {ErrorType}",
+                dutyType, user.Id, ex.ErrorType);
+            await RespondAsync(ex.UserMessage, ephemeral: true);
+        }
     }
 
     [ComponentInteraction("duty_remove_*", ignoreGroupNames: true)]
@@ -66,14 +74,23 @@ public class ButtonHandler : InteractionModuleBase<SocketInteractionContext>
         var user = (IGuildUser)Context.User;
 
         // 担務を持っているかチェック
-        if (!_roleService.HasDutyRole(user, dutyConfig))
+        if (!roleService.HasDutyRole(user, dutyConfig))
         {
             await RespondAsync(Messages.NoDutyToRemove, ephemeral: true);
             return;
         }
 
         // 担務ロール解除
-        await _roleService.RemoveDutyRole(user, dutyConfig);
-        await RespondAsync(Messages.DutyRemoved, ephemeral: true);
+        try
+        {
+            await roleService.RemoveDutyRole(user, dutyConfig);
+            await RespondAsync(Messages.DutyRemoved, ephemeral: true);
+        }
+        catch (RoleOperationException ex)
+        {
+            logger.LogError(ex, "Failed to remove duty {DutyType} from user {UserId}. ErrorType: {ErrorType}",
+                dutyType, user.Id, ex.ErrorType);
+            await RespondAsync(ex.UserMessage, ephemeral: true);
+        }
     }
 }
