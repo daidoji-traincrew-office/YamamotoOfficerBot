@@ -50,8 +50,6 @@ public class DutyResetScheduler(
         }
 
         var dutyRoleIds = _dutyConfigs.Values.Select(c => c.DutyRoleId).ToHashSet();
-        var rolesResetCount = 0;
-        var usersUpdatedCount = 0;
 
         foreach (var roleId in dutyRoleIds)
         {
@@ -69,7 +67,6 @@ public class DutyResetScheduler(
                 try
                 {
                     await member.RemoveRoleAsync(role);
-                    usersUpdatedCount++;
                     logger.LogInformation("Removed role {RoleName} from user {UserName}.", role.Name, member.DisplayName);
                 }
                 catch (Exception ex)
@@ -77,8 +74,6 @@ public class DutyResetScheduler(
                     logger.LogError(ex, "Failed to remove role {RoleName} from user {UserName}.", role.Name, member.DisplayName);
                 }
             }
-
-            rolesResetCount++;
         }
 
         logger.LogInformation("Duty reset completed at {Time} JST.", TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, JstTimeZone));
