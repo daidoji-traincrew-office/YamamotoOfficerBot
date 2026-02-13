@@ -19,7 +19,14 @@ public class ButtonHandler(
     [ComponentInteraction("duty_assign_*", ignoreGroupNames: true)]
     public async Task HandleAssignButtonAsync()
     {
-        var customId = ((IComponentInteraction)Context.Interaction).Data.CustomId;
+        if (Context.Interaction is not IComponentInteraction interaction)
+        {
+            logger.LogError("Interaction is not a component interaction");
+            await RespondAsync("無効なインタラクションです", ephemeral: true);
+            return;
+        }
+
+        var customId = interaction.Data.CustomId;
         var dutyType = customId.Replace("duty_assign_", "");
 
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
@@ -28,7 +35,12 @@ public class ButtonHandler(
             return;
         }
 
-        var user = (IGuildUser)Context.User;
+        if (Context.User is not IGuildUser user)
+        {
+            logger.LogError("User is not a guild user");
+            await RespondAsync("ギルド内でのみ使用できます", ephemeral: true);
+            return;
+        }
 
         // 資格チェック
         if (!roleService.HasRequiredRole(user, dutyConfig))
@@ -62,7 +74,14 @@ public class ButtonHandler(
     [ComponentInteraction("duty_remove_*", ignoreGroupNames: true)]
     public async Task HandleRemoveButtonAsync()
     {
-        var customId = ((IComponentInteraction)Context.Interaction).Data.CustomId;
+        if (Context.Interaction is not IComponentInteraction interaction)
+        {
+            logger.LogError("Interaction is not a component interaction");
+            await RespondAsync("無効なインタラクションです", ephemeral: true);
+            return;
+        }
+
+        var customId = interaction.Data.CustomId;
         var dutyType = customId.Replace("duty_remove_", "");
 
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
@@ -71,7 +90,12 @@ public class ButtonHandler(
             return;
         }
 
-        var user = (IGuildUser)Context.User;
+        if (Context.User is not IGuildUser user)
+        {
+            logger.LogError("User is not a guild user");
+            await RespondAsync("ギルド内でのみ使用できます", ephemeral: true);
+            return;
+        }
 
         // 担務を持っているかチェック
         if (!roleService.HasDutyRole(user, dutyConfig))
