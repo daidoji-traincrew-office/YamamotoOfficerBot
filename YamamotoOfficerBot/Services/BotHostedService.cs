@@ -37,6 +37,9 @@ public class BotHostedService : IHostedService
         // Readyイベントにハンドラ登録
         _client.Ready += OnReadyAsync;
 
+        // インタラクションイベントにハンドラ登録
+        _client.InteractionCreated += HandleInteractionAsync;
+
         // ログイン
         await _client.LoginAsync(TokenType.Bot, _discordConfig.Token);
         await _client.StartAsync();
@@ -73,6 +76,28 @@ public class BotHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to register slash commands");
+        }
+    }
+
+    private async Task HandleInteractionAsync(SocketInteraction interaction)
+    {
+        try
+        {
+            // インタラクションコンテキストを作成
+            var context = new SocketInteractionContext(_client, interaction);
+
+            // コマンドを実行
+            await _interactionService.ExecuteCommandAsync(context, _serviceProvider);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling interaction");
+
+            // エラー時のレスポンス
+            if (interaction.Type == InteractionType.ApplicationCommand)
+            {
+                await interaction.RespondAsync("コマンドの実行中にエラーが発生しました", ephemeral: true);
+            }
         }
     }
 }
