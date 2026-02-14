@@ -19,10 +19,9 @@ public class ButtonHandler(
     [ComponentInteraction("duty_assign_*", ignoreGroupNames: true)]
     public async Task HandleAssignButtonAsync()
     {
-        if (Context.Interaction is not IComponentInteraction interaction)
+        if (Context.Interaction is not IComponentInteraction interaction  
+           || Context.User is not IGuildUser user)
         {
-            logger.LogError("Interaction is not a component interaction");
-            await RespondAsync("無効なインタラクションです", ephemeral: true);
             return;
         }
 
@@ -32,13 +31,6 @@ public class ButtonHandler(
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
         {
             await RespondAsync("無効な担務タイプです", ephemeral: true);
-            return;
-        }
-
-        if (Context.User is not IGuildUser user)
-        {
-            logger.LogError("User is not a guild user");
-            await RespondAsync("ギルド内でのみ使用できます", ephemeral: true);
             return;
         }
 
@@ -74,10 +66,9 @@ public class ButtonHandler(
     [ComponentInteraction("duty_remove_*", ignoreGroupNames: true)]
     public async Task HandleRemoveButtonAsync()
     {
-        if (Context.Interaction is not IComponentInteraction interaction)
+        if (Context.Interaction is not IComponentInteraction interaction
+            || Context.User is not IGuildUser user)
         {
-            logger.LogError("Interaction is not a component interaction");
-            await RespondAsync("無効なインタラクションです", ephemeral: true);
             return;
         }
 
@@ -87,13 +78,6 @@ public class ButtonHandler(
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
         {
             await RespondAsync("無効な担務タイプです", ephemeral: true);
-            return;
-        }
-
-        if (Context.User is not IGuildUser user)
-        {
-            logger.LogError("User is not a guild user");
-            await RespondAsync("ギルド内でのみ使用できます", ephemeral: true);
             return;
         }
 
