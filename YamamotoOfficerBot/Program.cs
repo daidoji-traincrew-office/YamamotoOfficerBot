@@ -35,14 +35,14 @@ builder.Services.AddSingleton<DutyResetScheduler>();
 builder.Services.AddHostedService<BotHostedService>();
 
 // OpenTelemetry
-var endpoint = builder.Configuration["OpenTelemetry:Endpoint"];
-if (endpoint != null)
+var enableOtlp = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] != null;
+if (enableOtlp)
 {
     builder.Logging.AddOpenTelemetry(logging =>
     {
         logging.IncludeFormattedMessage = true;
         logging.IncludeScopes = true;
-        logging.AddOtlpExporter(options => { options.Endpoint = new(endpoint); });
+        logging.AddOtlpExporter();
     });
 }
 
