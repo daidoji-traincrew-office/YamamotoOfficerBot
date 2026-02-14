@@ -45,8 +45,11 @@ public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketI
             .WithButton("解除", $"duty_remove_{dutyType}", ButtonStyle.Danger)
             .Build();
 
-        // Use FollowupAsync after deferring
-        await FollowupAsync(
+        // Delete the deferred response
+        await DeleteOriginalResponseAsync();
+
+        // Send components in a separate message to the same channel
+        await Context.Channel.SendMessageAsync(
             $"{dutyName}\n以下のボタンを押して担務を付与・解除できます。",
             components: components);
     }
