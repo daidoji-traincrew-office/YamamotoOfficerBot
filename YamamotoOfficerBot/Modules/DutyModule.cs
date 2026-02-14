@@ -41,8 +41,8 @@ public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketI
         }
 
         var components = new ComponentBuilder()
-            .WithButton("付与", $"duty_assign_{dutyType}", ButtonStyle.Success)
-            .WithButton("解除", $"duty_remove_{dutyType}", ButtonStyle.Danger)
+            .WithButton("出勤", $"duty_assign_{dutyType}", ButtonStyle.Success)
+            .WithButton("退勤", $"duty_remove_{dutyType}", ButtonStyle.Danger)
             .Build();
 
         // Delete the deferred response
@@ -50,7 +50,7 @@ public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketI
 
         // Send components in a separate message to the same channel
         await Context.Channel.SendMessageAsync(
-            $"{dutyName}\n以下のボタンを押して担務を付与・解除できます。",
+            $"{dutyName}\n以下のボタンを押して出勤・退勤できます。",
             components: components);
     }
 }

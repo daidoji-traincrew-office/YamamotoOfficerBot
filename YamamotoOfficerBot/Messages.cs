@@ -3,10 +3,10 @@ namespace YamamotoOfficerBot;
 public static class Messages
 {
     public const string NoPermission = "このコマンドを実行する権限がありません";
-    public const string AlreadyHasDuty = "既に担務ロールが付与されています";
-    public const string NoDutyToRemove = "担務ロールは付与されていません";
-    public const string DutyAssigned = "担務ロールを付与しました";
-    public const string DutyRemoved = "担務ロールを解除しました";
+    public const string AlreadyHasDuty = "既に出勤済みです(担務ロールが付与されています)";
+    public const string NoDutyToRemove = "既に退勤済み・出勤していません(担務ロールが付与されていません)";
+    public const string DutyAssigned = "出勤しました！今日も一日ご安全に！";
+    public const string DutyRemoved = "退勤しました！今日も一日お疲れ様でした！";
 
     // Role operation error messages
     public const string RoleNotFound = "ロールが見つかりませんでした";
