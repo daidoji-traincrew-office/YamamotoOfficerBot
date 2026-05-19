@@ -16,7 +16,7 @@ public class ButtonHandler(
 {
     private readonly Dictionary<string, DutyConfig> _dutyConfigs = dutyConfigs.Value;
 
-    private async Task RespondEphemeralAsync(string message)
+    private async Task RespondEphemeralAndDeleteAsync(string message)
     {
         await RespondAsync(message, ephemeral: true);
         _ = Task.Run(async () =>
@@ -47,7 +47,7 @@ public class ButtonHandler(
 
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
         {
-            await RespondEphemeralAsync("無効な担務タイプです");
+            await RespondEphemeralAndDeleteAsync("無効な担務タイプです");
             return;
         }
 
@@ -55,14 +55,14 @@ public class ButtonHandler(
         if (!roleService.HasRequiredRole(user, dutyConfig))
         {
             var roleNames = roleService.GetRequiredRoleNames(Context.Guild, dutyConfig);
-            await RespondEphemeralAsync(Messages.RequiredRolesMissing(roleNames));
+            await RespondEphemeralAndDeleteAsync(Messages.RequiredRolesMissing(roleNames));
             return;
         }
 
         // 既に担務を持っているかチェック
         if (roleService.HasDutyRole(user, dutyConfig))
         {
-            await RespondEphemeralAsync(Messages.AlreadyHasDuty);
+            await RespondEphemeralAndDeleteAsync(Messages.AlreadyHasDuty);
             return;
         }
 
@@ -70,13 +70,13 @@ public class ButtonHandler(
         try
         {
             await roleService.AssignDutyRole(user, dutyConfig);
-            await RespondEphemeralAsync(Messages.DutyAssigned);
+            await RespondEphemeralAndDeleteAsync(Messages.DutyAssigned);
         }
         catch (RoleOperationException ex)
         {
             logger.LogError(ex, "Failed to assign duty {DutyType} to user {UserId}. ErrorType: {ErrorType}",
                 dutyType, user.Id, ex.ErrorType);
-            await RespondEphemeralAsync(ex.UserMessage);
+            await RespondAsync(ex.UserMessage, ephemeral: true);
         }
     }
 
@@ -90,7 +90,7 @@ public class ButtonHandler(
 
         if (roleService.HasBeginnerRole(user))
         {
-            await RespondEphemeralAsync(Messages.BeginnerAlreadyAssigned);
+            await RespondEphemeralAndDeleteAsync(Messages.BeginnerAlreadyAssigned);
             return;
         }
 
@@ -103,7 +103,7 @@ public class ButtonHandler(
         {
             logger.LogError(ex, "Failed to assign beginner role to user {UserId}. ErrorType: {ErrorType}",
                 user.Id, ex.ErrorType);
-            await RespondEphemeralAsync(ex.UserMessage);
+            await RespondAsync(ex.UserMessage, ephemeral: true);
         }
     }
 
@@ -121,14 +121,14 @@ public class ButtonHandler(
 
         if (!_dutyConfigs.TryGetValue(dutyType, out var dutyConfig))
         {
-            await RespondEphemeralAsync("無効な担務タイプです");
+            await RespondEphemeralAndDeleteAsync("無効な担務タイプです");
             return;
         }
 
         // 担務を持っているかチェック
         if (!roleService.HasDutyRole(user, dutyConfig))
         {
-            await RespondEphemeralAsync(Messages.NoDutyToRemove);
+            await RespondEphemeralAndDeleteAsync(Messages.NoDutyToRemove);
             return;
         }
 
@@ -136,13 +136,13 @@ public class ButtonHandler(
         try
         {
             await roleService.RemoveDutyRole(user, dutyConfig);
-            await RespondEphemeralAsync(Messages.DutyRemoved);
+            await RespondEphemeralAndDeleteAsync(Messages.DutyRemoved);
         }
         catch (RoleOperationException ex)
         {
             logger.LogError(ex, "Failed to remove duty {DutyType} from user {UserId}. ErrorType: {ErrorType}",
                 dutyType, user.Id, ex.ErrorType);
-            await RespondEphemeralAsync(ex.UserMessage);
+            await RespondAsync(ex.UserMessage, ephemeral: true);
         }
     }
 }
