@@ -118,6 +118,46 @@ public class RoleService(IOptions<RolesConfig> rolesConfig, ILogger<RoleService>
         }
     }
 
+    public bool HasBeginnerRole(IGuildUser user)
+    {
+        return user.RoleIds.Contains(_rolesConfig.BeginnerRoleId);
+    }
+
+    public async Task AssignBeginnerRole(IGuildUser user)
+    {
+        try
+        {
+            await user.AddRoleAsync(_rolesConfig.BeginnerRoleId);
+        }
+        catch (HttpException ex)
+        {
+            logger.LogError(ex, "Failed to assign beginner role {RoleId} to user {UserId}. Status: {StatusCode}",
+                _rolesConfig.BeginnerRoleId, user.Id, ex.HttpCode);
+
+            var errorType = ex.HttpCode switch
+            {
+                HttpStatusCode.NotFound => RoleOperationErrorType.RoleNotFound,
+                HttpStatusCode.Forbidden => RoleOperationErrorType.MissingPermissions,
+                HttpStatusCode.TooManyRequests => RoleOperationErrorType.RateLimited,
+                _ => RoleOperationErrorType.Unknown
+            };
+
+            throw new RoleOperationException(errorType);
+        }
+        catch (TimeoutException ex)
+        {
+            logger.LogError(ex, "Timeout while assigning beginner role {RoleId} to user {UserId}",
+                _rolesConfig.BeginnerRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.NetworkError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error while assigning beginner role {RoleId} to user {UserId}",
+                _rolesConfig.BeginnerRoleId, user.Id);
+            throw new RoleOperationException(RoleOperationErrorType.Unknown);
+        }
+    }
+
     /// <summary>
     /// RequiredRoleIdsのロール名一覧を取得（エラーメッセージ用）
     /// </summary>

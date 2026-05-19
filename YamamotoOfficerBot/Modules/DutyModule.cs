@@ -30,6 +30,25 @@ public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketI
         await SendDutyPanelAsync("指導運転士担務", "InstructorDriver");
     }
 
+    [SlashCommand("beginner-panel", "入鋏ロール付与パネルを送信します")]
+    public async Task BeginnerPanelAsync()
+    {
+        await DeferAsync(ephemeral: true);
+        if (Context.User is not IGuildUser user || !roleService.HasAdministratorRole(user))
+        {
+            await ModifyOriginalResponseAsync(m => m.Content = Messages.NoPermission);
+            return;
+        }
+
+        var components = new ComponentBuilder()
+            .WithButton("OK", "beginner_assign", ButtonStyle.Success)
+            .Build();
+
+        await DeleteOriginalResponseAsync();
+
+        await Context.Channel.SendMessageAsync(Messages.BeginnerPanel, components: components);
+    }
+
     private async Task SendDutyPanelAsync(string dutyName, string dutyType)
     {
         // Defer the response to prevent timeout

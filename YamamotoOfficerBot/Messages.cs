@@ -8,6 +8,10 @@ public static class Messages
     public const string DutyAssigned = "出勤しました！今日も一日ご安全に！";
     public const string DutyRemoved = "退勤しました！今日も一日お疲れ様でした！";
 
+    public const string BeginnerPanel = "# みんなで全力のごっこ遊びをして、全力で遊びましょう。";
+    public const string BeginnerAssigned = "ようこそ！館浜電鉄ダイヤ運転会へ！まずは「教習所」カテゴリの、「運転会に参加するまでの流れ」をご確認ください";
+    public const string BeginnerAlreadyAssigned = "既に入鋏ロールが付与されています。";
+
     // Role operation error messages
     public const string RoleNotFound = "ロールが見つかりませんでした";
     public const string MissingPermissions = "ボットに必要な権限がありません";

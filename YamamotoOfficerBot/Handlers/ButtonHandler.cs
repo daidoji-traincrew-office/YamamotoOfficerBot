@@ -80,6 +80,33 @@ public class ButtonHandler(
         }
     }
 
+    [ComponentInteraction("beginner_assign", ignoreGroupNames: true)]
+    public async Task HandleBeginnerAssignAsync()
+    {
+        if (Context.User is not IGuildUser user)
+        {
+            return;
+        }
+
+        if (roleService.HasBeginnerRole(user))
+        {
+            await RespondEphemeralAsync(Messages.BeginnerAlreadyAssigned);
+            return;
+        }
+
+        try
+        {
+            await roleService.AssignBeginnerRole(user);
+            await RespondAsync(Messages.BeginnerAssigned, ephemeral: true);
+        }
+        catch (RoleOperationException ex)
+        {
+            logger.LogError(ex, "Failed to assign beginner role to user {UserId}. ErrorType: {ErrorType}",
+                user.Id, ex.ErrorType);
+            await RespondEphemeralAsync(ex.UserMessage);
+        }
+    }
+
     [ComponentInteraction("duty_remove_*", ignoreGroupNames: true)]
     public async Task HandleRemoveButtonAsync()
     {
