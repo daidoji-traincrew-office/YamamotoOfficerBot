@@ -30,6 +30,12 @@ public class DutyModule(RoleService roleService) : InteractionModuleBase<SocketI
         await SendDutyPanelAsync("指導運転士担務", "InstructorDriver");
     }
 
+    [SlashCommand("officer-duty-panel", "助役担務パネルを送信します")]
+    public async Task OfficerDutyPanelAsync()
+    {
+        await SendDutyPanelAsync("助役担務", "Officer");
+    }
+
     [SlashCommand("beginner-panel", "入鋏ロール付与パネルを送信します")]
     public async Task BeginnerPanelAsync()
     {
