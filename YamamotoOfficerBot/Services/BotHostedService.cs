@@ -6,6 +6,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using YamamotoOfficerBot.Scheduler;
 using DiscordConfig = YamamotoOfficerBot.Models.DiscordConfig;
 
 namespace YamamotoOfficerBot.Services;
@@ -16,7 +17,8 @@ public class BotHostedService(
     IOptions<DiscordConfig> discordConfig,
     IServiceProvider serviceProvider,
     ILogger<BotHostedService> logger,
-    IHostApplicationLifetime applicationLifetime)
+    IHostApplicationLifetime applicationLifetime,
+    DutyResetScheduler scheduler)
     : IHostedService
 {
     private readonly DiscordConfig _discordConfig = discordConfig.Value;
@@ -65,6 +67,8 @@ public class BotHostedService(
     {
         logger.LogInformation("BotHostedService stopping...");
 
+        await scheduler.Stop();
+
         await client.StopAsync();
         await client.LogoutAsync();
 
@@ -91,6 +95,9 @@ public class BotHostedService(
         {
             logger.LogError(ex, "Failed to register slash commands");
         }
+
+        scheduler.Start();
+        logger.LogInformation("DutyResetScheduler started.");
     }
 
     private async Task HandleInteractionAsync(SocketInteraction interaction)

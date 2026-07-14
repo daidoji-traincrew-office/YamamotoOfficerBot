@@ -3,17 +3,17 @@ using Microsoft.Extensions.Logging;
 
 namespace YamamotoOfficerBot.Scheduler;
 
-public abstract class Scheduler
+public abstract class Scheduler(IServiceScopeFactory serviceScopeFactory)
 {
-    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-    private readonly Task _task;
+    private Task? _task;
+    private int _started = 0;
 
     protected abstract int Interval { get; }
 
-    protected Scheduler(IServiceScopeFactory serviceScopeFactory)
+    public void Start()
     {
-        _serviceScopeFactory = serviceScopeFactory;
+        if (Interlocked.CompareExchange(ref _started, 1, 0) != 0) return;
         _task = Task.Run(async () => await RunAsync(_cancellationTokenSource.Token));
     }
 
@@ -21,9 +21,17 @@ public abstract class Scheduler
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            using var scope = _serviceScopeFactory.CreateScope();
+            try
+            {
+                await Task.Delay(Interval, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            using var scope = serviceScopeFactory.CreateScope();
             var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(GetType());
-            var timer = Task.Delay(Interval, cancellationToken);
 
             try
             {
@@ -33,15 +41,6 @@ public abstract class Scheduler
             {
                 logger.LogError(ex, "An error occurred while executing the task.");
             }
-
-            try
-            {
-                await timer;
-            }
-            catch (TaskCanceledException)
-            {
-                break;
-            }
         }
     }
 
@@ -50,6 +49,7 @@ public abstract class Scheduler
     public async Task Stop()
     {
         await _cancellationTokenSource.CancelAsync();
-        await _task;
+        if (_task != null) await _task;
+        Interlocked.Exchange(ref _started, 0);
     }
 }
