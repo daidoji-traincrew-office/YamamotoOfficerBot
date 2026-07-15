@@ -20,7 +20,8 @@ builder.Services.Configure<RolesConfig>(builder.Configuration.GetSection("Roles"
 // Discord.Net - DiscordSocketClient with GatewayIntents
 builder.Services.AddSingleton(_ => new DiscordSocketClient(new DiscordSocketConfig
 {
-    GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers
+    GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers,
+    AlwaysDownloadUsers = true
 }));
 
 // Discord.Net - InteractionService
